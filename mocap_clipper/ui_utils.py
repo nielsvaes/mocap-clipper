@@ -4,8 +4,18 @@ import traceback
 from functools import partial
 import logging
 
-from PySide2 import QtCore, QtWidgets, QtGui
-from shiboken2 import wrapInstance
+try:  # Qt6 / PySide6 (Maya 2025 and newer)
+    from PySide6 import QtCore, QtWidgets, QtGui
+    from PySide6.QtGui import QAction, QActionGroup, QShortcut
+    from shiboken6 import wrapInstance
+
+    QT_BINDING = "PySide6"
+except ImportError:  # Qt5 / PySide2 (Maya 2024 and older)
+    from PySide2 import QtCore, QtWidgets, QtGui
+    from PySide2.QtWidgets import QAction, QActionGroup, QShortcut
+    from shiboken2 import wrapInstance
+
+    QT_BINDING = "PySide2"
 
 if sys.version_info.major >= 3:
     long = int
@@ -162,9 +172,9 @@ def build_menu_from_action_list(actions, menu=None, is_sub_menu=False):
                 if not item_to_check:
                     item_to_check = default_choice
 
-                grp = QtWidgets.QActionGroup(menu)
+                grp = QActionGroup(menu)
                 for choice_key in choices:
-                    action = QtWidgets.QAction(choice_key, menu)
+                    action = QAction(choice_key, menu)
                     action.setCheckable(True)
 
                     if choice_key == item_to_check:
@@ -209,8 +219,16 @@ def compile_ui(src_ui_path):
 
     if sys.version_info.major > 2:
         import subprocess
-        uic_exe = os.path.join(os.path.dirname(os.path.dirname(sys.executable)), "bin3", "pyside2-uic.exe")
-        command = '"%s" %s > %s' % (uic_exe, src_ui_path, out_py_path)
+        dcc_root = os.path.dirname(os.path.dirname(sys.executable))
+
+        if QT_BINDING == "PySide6":
+            # Maya 2025+ ships Qt6's uic, which emits C++ unless told otherwise
+            uic_exe = os.path.join(dcc_root, "bin", "uic.exe")
+            command = '"%s" -g python --star-imports %s > %s' % (uic_exe, src_ui_path, out_py_path)
+        else:
+            uic_exe = os.path.join(dcc_root, "bin3", "pyside2-uic.exe")
+            command = '"%s" %s > %s' % (uic_exe, src_ui_path, out_py_path)
+
         subprocess.Popen(command, shell=True)
     else:
         import pyside2uic
@@ -281,10 +299,10 @@ def build_log_level_menu(menu_bar, log_cls):
     }
 
     log_menu = menu_bar.addMenu("Log Level")  # type: QtWidgets.QMenu
-    ag = QtWidgets.QActionGroup(log_menu, exclusive=True)
+    ag = QActionGroup(log_menu, exclusive=True)
 
     for level_name, log_level in log_levels.items():
-        action = QtWidgets.QAction(level_name, log_menu, checkable=True)
+        action = QAction(level_name, log_menu, checkable=True)
 
         if log_level == log_cls.level:
             action.setChecked(True)
@@ -367,7 +385,9 @@ class QtPathWidget(QtWidgets.QWidget):
         self.path_dialog = QtWidgets.QFileDialog()
 
         if self.use_directory_dialog:
-            self.path_dialog.setFileMode(QtWidgets.QFileDialog.DirectoryOnly)
+            # DirectoryOnly was removed in Qt6, this is the documented replacement
+            self.path_dialog.setFileMode(QtWidgets.QFileDialog.Directory)
+            self.path_dialog.setOption(QtWidgets.QFileDialog.ShowDirsOnly, True)
 
         self.path_dialog.setNameFilter(file_filter)
 

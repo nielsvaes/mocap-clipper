@@ -9,7 +9,10 @@ from . import adjustment_blend_maya
 from . import mocap_clipper_constants as k
 from . import mocap_clipper_dcc_core
 from . import mocap_clipper_logger
-from PySide2 import QtWidgets, QtGui
+try:  # Qt6 / PySide6 (Maya 2025 and newer)
+    from PySide6 import QtWidgets, QtGui
+except ImportError:  # Qt5 / PySide2 (Maya 2024 and older)
+    from PySide2 import QtWidgets, QtGui
 
 log = mocap_clipper_logger.get_logger()
 
