@@ -17,6 +17,21 @@ except ImportError:  # Qt5 / PySide2 (Maya 2024 and older)
 log = mocap_clipper_logger.get_logger()
 
 
+def ensure_fbx_plugin():
+    """Load fbxmaya if it isn't already, so the FBX* MEL commands exist.
+
+    fbxmaya ships with Maya but is not autoloaded (pluginInfo -autoload reads False on
+    2022 and 2027 alike), and the FBX* commands -- along with pymel's wrappers for them
+    -- only exist once the plugin is in. Whether this bites comes down to whether some
+    other tool happened to pull fbxmaya in first, so it can look like it works fine for
+    years and then fail in a fresh scene with "module 'pymel.core' has no attribute
+    'FBXResetImport'", which does not name the plugin.
+    """
+    if not pm.pluginInfo("fbxmaya", query=True, loaded=True):
+        log.info("loading fbxmaya plugin")
+        pm.loadPlugin("fbxmaya", quiet=True)
+
+
 class MocapClipperMaya(mocap_clipper_dcc_core.MocapClipperCoreInterface):
     def __init__(self, *args, **kwargs):
         super(MocapClipperMaya, self).__init__(*args, **kwargs)
@@ -177,6 +192,8 @@ class MocapClipperMaya(mocap_clipper_dcc_core.MocapClipperCoreInterface):
             pm.namespace(removeNamespace=child, mergeNamespaceWithParent=True)
 
     def import_mocap(self, file_path):
+        ensure_fbx_plugin()
+
         clip_name = os.path.splitext(os.path.basename(file_path))[0]
 
         nspace = 'mocapImport'
