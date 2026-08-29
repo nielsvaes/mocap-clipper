@@ -287,7 +287,9 @@ class MocapClipperWindow(ui_utils.ToolWindow):
         self.scene_data = mcs.dcc.get_scene_time_editor_data()
         log.debug("Scene data refresh: {}".format(self.scene_data))
 
-        clip_icon = mcs.dcc.get_clip_icon() or None
+        # a null QIcon is falsy, so "or None" here would hand setIcon a None and raise --
+        # matches how the other icons in this file are defaulted
+        clip_icon = mcs.dcc.get_clip_icon() or QtGui.QIcon()
 
         # update clip list
         self.ui.clips_LW.clear()
@@ -299,7 +301,8 @@ class MocapClipperWindow(ui_utils.ToolWindow):
             # background color
             if clip_data.clip_color:
                 rgb_color = QtGui.QColor(*[x * 256 for x in clip_data.clip_color])
-                lw.setBackgroundColor(rgb_color)
+                # setBackgroundColor was removed in Qt6; setBackground exists in both
+                lw.setBackground(QtGui.QBrush(rgb_color))
 
             # text color
             lw.setForeground(QtGui.QColor(0, 0, 0))
